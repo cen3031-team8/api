@@ -21,6 +21,7 @@ func main() {
 		),
 
 		server.Module,
+		server.PokemonModule,
 		auth.Module,
 	).Run()
 }

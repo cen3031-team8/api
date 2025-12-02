@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 	"os"
 
@@ -8,9 +9,16 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+
+	"github.com/cen3031-team8/api/database"
+	_ "github.com/lib/pq"
 )
 
-var Module = fx.Module("server", 
+var Module = fx.Module("server",
+	fx.Provide(NewDatabaseConnection),
+	fx.Provide(func(db *sql.DB) *database.Queries {
+		return database.New(db)
+	}),
 	fx.Provide(gin.New),
 	fx.Provide(func(engine *gin.Engine) gin.IRouter {
 		return gin.IRouter(engine)
@@ -18,7 +26,27 @@ var Module = fx.Module("server",
 	fx.Invoke(NewHTTPServer),
 )
 
-func NewHTTPServer(lc fx.Lifecycle, engine *gin.Engine, log *zap.Logger){
+func NewDatabaseConnection() (*sql.DB, error) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@localhost:5432/pokemon_db?sslmode=disable"
+	}
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Test the connection
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func NewHTTPServer(lc fx.Lifecycle, engine *gin.Engine, log *zap.Logger) {
 	engine.Use(errorMiddleware(log))
 
 	lc.Append(fx.Hook{
@@ -28,8 +56,8 @@ func NewHTTPServer(lc fx.Lifecycle, engine *gin.Engine, log *zap.Logger){
 				port = "8080"
 			}
 
-			go engine.Run(":"+port)
-			
+			go engine.Run(":" + port)
+
 			return nil
 		},
 	})
