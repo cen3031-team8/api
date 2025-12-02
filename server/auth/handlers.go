@@ -16,7 +16,7 @@ import (
 const (
 	AdminUserID   int64  = 1
 	AdminUsername string = "admin"
-	JWTSecret     string = "your-secret-key" // TODO: Load from environment
+	JWTSecret     string = "cen3031-auth-secret"
 )
 
 type AuthService struct {
